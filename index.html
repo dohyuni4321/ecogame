@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>에코 리사이클러 - 기후위기 탈출 게임</title>
+    <!-- Supabase JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --primary: #22c55e;
+            --primary-dark: #16a34a;
+            --accent: #f59e0b;
+            --card-bg: #ffffff;
+            --text: #0f172a;
+
+            --bin-plastic-color: #0284c7;
+            --bin-glass-color: #059669;
+            --bin-paper-color: #d97706;
+            --bin-general-color: #475569;
+            --bin-border-color: rgba(255,255,255,0.2);
+            --bin-glow: transparent;
+        }
+
+        /* 1. 네온 스킨 */
+        body.skin-neon {
+            --bin-plastic-color: #00f0ff;
+            --bin-glass-color: #00ff66;
+            --bin-paper-color: #ffaa00;
+            --bin-general-color: #ff007f;
+            --bin-border-color: #ffffff;
+            --bin-glow: 0 0 25px rgba(0, 240, 255, 0.8);
+        }
+
+        /* 2. 마그마 용암 스킨 */
+        body.skin-magma {
+            --bin-plastic-color: #ff4500;
+            --bin-glass-color: #ff8c00;
+            --bin-paper-color: #ffcc00;
+            --bin-general-color: #8b0000;
+            --bin-border-color: #ff7f50;
+            --bin-glow: 0 0 25px rgba(255, 69, 0, 0.9);
+        }
+
+        /* 3. 글레이셔 빙하 스킨 */
+        body.skin-glacier {
+            --bin-plastic-color: #e0ffff;
+            --bin-glass-color: #00ffff;
+            --bin-paper-color: #afeeee;
+            --bin-general-color: #4682b4;
+            --bin-border-color: #ffffff;
+            --bin-glow: 0 0 25px rgba(0, 255, 255, 0.7);
+        }
+
+        /* 4. 골든 레전드 스킨 */
+        body.skin-gold {
+            --bin-plastic-color: #ffd700;
+            --bin-glass-color: #ffb700;
+            --bin-paper-color: #ffa500;
+            --bin-general-color: #b8860b;
+            --bin-border-color: #fff8dc;
+            --bin-glow: 0 0 30px rgba(255, 215, 0, 1);
+        }
+
+        * { box-sizing: border-box; font-family: 'Pretendard', 'Noto Sans KR', sans-serif; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+        body { background: #1e293b; color: var(--text); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; transition: background 0.3s; touch-action: manipulation; }
+
+        .container {
+            width: 96vw; max-width: 1200px; background: #fff; border-radius: 24px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.4); overflow: hidden; display: flex; flex-direction: column;
+            transition: all 0.3s;
+        }
+
+        .top-user-bar {
+            background: #0f172a; color: white; padding: 20px 30px;
+            display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap;
+            border-bottom: 3px solid #334155; transition: all 0.3s ease;
+        }
+        .top-user-bar input, .top-user-bar select {
+            padding: 10px 12px; border-radius: 10px; border: 2px solid #475569;
+            background: #1e293b; color: white; font-size: 14px; font-weight: bold; text-align: center;
+        }
+        .top-user-bar input[type="text"] { width: 130px; }
+        .top-user-bar input[type="number"] { width: 70px; }
+        .btn-challenge {
+            background: #f97316; color: white; border: none; padding: 10px 25px; font-weight: 800;
+            border-radius: 10px; font-size: 16px; cursor: pointer; transition: 0.2s; box-shadow: 0 6px 15px rgba(249,115,22,0.4);
+        }
+        .btn-challenge:hover { background: #ea580c; transform: translateY(-2px); }
+
+        .dashboard { padding: 30px; background: #f8fafc; min-height: 480px; }
+        .dash-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
+        .dash-title { font-size: 24px; font-weight: 900; color: #0f172a; display: flex; align-items: center; gap: 10px; }
+
+        .global-earth-card {
+            background: linear-gradient(135deg, #0284c7, #1e3a8a); color: white; border-radius: 16px;
+            padding: 18px 25px; font-weight: 800; font-size: 16px; display: flex; align-items: center; gap: 15px;
+            box-shadow: 0 8px 20px rgba(2,132,199,0.3); border: 2px solid #38bdf8;
+        }
+
+        .top-rank-card {
+            background: linear-gradient(135deg, #0f172a, #1e293b); color: white; border-radius: 18px;
+            padding: 25px 35px; display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); border: 3px solid #f59e0b; margin-bottom: 20px;
+        }
+        .top-rank-info { display: flex; align-items: center; gap: 20px; }
+        .crown-icon { font-size: 45px; }
+        .top-player-name { font-size: 28px; font-weight: 900; color: #ffffff; }
+        .top-player-score { font-size: 32px; font-weight: 900; color: #facc15; }
+
+        .rank-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; max-height: 280px; overflow-y: auto; }
+        .rank-item {
+            background: white; border: 2px solid #e2e8f0; padding: 14px 20px; border-radius: 12px;
+            display: flex; justify-content: space-between; align-items: center; font-size: 16px; font-weight: 700;
+        }
+        .rank-num { width: 30px; color: #64748b; font-weight: 900; font-size: 18px; }
+        .rank-score { color: #16a34a; font-weight: 800; }
+
+        .bottom-nav-bar {
+            background: #f1f5f9; border-top: 2px solid #e2e8f0; padding: 20px 30px;
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;
+        }
+        .main-title { font-size: 26px; font-weight: 900; color: #16a34a; display: flex; align-items: center; gap: 10px; }
+        .nav-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
+        .nav-btn {
+            border: none; padding: 12px 20px; border-radius: 10px; font-size: 15px; font-weight: 800;
+            color: white; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .btn-yellow { background: #f59e0b; }
+        .btn-green { background: #10b981; }
+        .btn-blue { background: #0284c7; }
+        .btn-purple { background: #8b5cf6; }
+        .nav-btn:hover { opacity: 0.9; transform: translateY(-2px); }
+
+        #game-screen {
+            display: none; padding: 30px; color: white; position: relative;
+            background: linear-gradient(rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.85)),
+                        radial-gradient(circle, #334155 10%, #0f172a 90%);
+            background-size: cover; background-position: center; touch-action: none;
+        }
+        .game-hud { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+        .hud-item { font-size: 18px; font-weight: 900; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); padding: 10px 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.2); display: flex; align-items: center; gap: 10px; }
+        
+        .btn-quit {
+            background: #ef4444; color: white; border: none; padding: 6px 14px; font-weight: bold;
+            border-radius: 8px; cursor: pointer; font-size: 14px; transition: 0.2s;
+        }
+        .btn-quit:hover { background: #dc2626; }
+
+        .conveyor-container {
+            width: 100%; height: 210px; background: rgba(30, 41, 59, 0.9); border-radius: 16px; position: relative;
+            overflow: hidden; border: 5px solid #475569; margin-bottom: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .conveyor-belt {
+            position: absolute; bottom: 0; width: 100%; height: 32px;
+            background: repeating-linear-gradient(45deg, #0f172a, #0f172a 20px, #334155 20px, #334155 40px);
+            animation: moveBelt 1s linear infinite;
+        }
+        @keyframes moveBelt { 0% { background-position: 0 0; } 100% { background-position: 40px 0; } }
+
+        .trash-item {
+            position: absolute; width: 85px; height: 85px; top: 45px; cursor: grab;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10;
+            touch-action: none;
+        }
+        .trash-item:active { cursor: grabbing; transform: scale(1.1); }
+        .trash-label-tag {
+            position: absolute; top: -28px; background: rgba(15,23,42,0.95); color: #facc15; font-size: 13px;
+            font-weight: 800; padding: 4px 10px; border-radius: 6px; white-space: nowrap; border: 1.5px solid #f59e0b;
+            pointer-events: none; box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        }
+        .trash-item svg { width: 100%; height: 100%; filter: drop-shadow(0 6px 10px rgba(0,0,0,0.4)); pointer-events: none; }
+
+        .bins-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
+        .bin-wrapper { display: flex; flex-direction: column; align-items: center; }
+        .bin-box {
+            width: 100%; height: 210px; border-radius: 12px 12px 24px 24px;
+            display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
+            color: white; font-weight: 900; font-size: 18px; border: 4px solid var(--bin-border-color);
+            transition: all 0.2s ease; position: relative; box-shadow: var(--bin-glow), 0 10px 20px rgba(0,0,0,0.5);
+            background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(0,0,0,0.4) 100%);
+        }
+
+        .bin-lid {
+            width: 105%; height: 34px; border-radius: 10px; margin-top: -8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3); border: 2px solid rgba(255,255,255,0.3);
+            display: flex; justify-content: center; align-items: center;
+        }
+        .bin-hole { width: 50%; height: 10px; background: #0f172a; border-radius: 5px; }
+
+        .bin-plastic { background-color: var(--bin-plastic-color); }
+        .bin-plastic .bin-lid { background-color: #0369a1; }
+        .bin-glass { background-color: var(--bin-glass-color); }
+        .bin-glass .bin-lid { background-color: #047857; }
+        .bin-paper { background-color: var(--bin-paper-color); }
+        .bin-paper .bin-lid { background-color: #b45309; }
+        .bin-general { background-color: var(--bin-general-color); }
+        .bin-general .bin-lid { background-color: #334155; }
+
+        .bin-box.drag-hover { transform: scale(1.08); filter: brightness(1.3); border-color: #facc15; }
+
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.75); justify-content: center; align-items: center; z-index: 100;
+        }
+        .modal-content {
+            background: white; border-radius: 20px; padding: 30px; width: 90%; max-width: 600px;
+            text-align: center; box-shadow: 0 15px 35px rgba(0,0,0,0.3); position: relative;
+            max-height: 85vh; overflow-y: auto;
+        }
+        .modal-close { position: absolute; top: 20px; right: 20px; font-size: 24px; cursor: pointer; border: none; background: none; }
+        
+        .shop-card {
+            background: #f1f5f9; border-radius: 12px; padding: 16px; margin-top: 12px;
+            display: flex; justify-content: space-between; align-items: center; border: 2px solid #cbd5e1; gap: 10px;
+        }
+
+        .guide-box {
+            background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 12px; padding: 15px;
+            margin-top: 15px; text-align: left; font-size: 14px; line-height: 1.6; color: #334155;
+        }
+        .guide-title { font-weight: 800; font-size: 16px; color: #0f172a; margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="container" id="main-container">
+    <div class="top-user-bar" id="top-user-bar">
+        <input type="text" id="school-input" placeholder="학교 이름" value="서울잠신초등학교">
+        <select id="grade-select">
+            <option value="" disabled>학년 선택</option>
+            <option value="1학년">1학년</option><option value="2학년">2학년</option>
+            <option value="3학년">3학년</option><option value="4학년">4학년</option>
+            <option value="5학년">5학년</option><option value="6학년" selected>6학년</option>
+        </select>
+        <input type="number" id="class-input" min="1" max="30" placeholder="반" value="4"> <span style="font-size: 15px; font-weight: bold;">반</span>
+        <input type="text" id="nickname-input" placeholder="닉네임 (최대6글자)" maxlength="6">
+        
+        <select id="time-select">
+            <option value="30" selected>⏱️ 30초</option>
+            <option value="60">⏱️ 1분</option>
+            <option value="180">⏱️ 3분</option>
+        </select>
+
+        <select id="difficulty-select">
+            <option value="easy">🌱 쉬움 (1코인)</option>
+            <option value="normal" selected>⚡ 보통 (10코인)</option>
+            <option value="hard">🔥 어려움 (50코인)</option>
+        </select>
+
+        <button class="btn-challenge" onclick="verifyAndStartGame()">도전!</button>
+    </div>
+
+    <div id="main-dashboard" class="dashboard">
+        <div class="dash-header">
+            <div class="dash-title">🏆 실시간 리사이클 랭킹</div>
+            
+            <div class="global-earth-card">
+                <span style="font-size: 28px;">🌍</span>
+                <div>
+                    <div style="font-size: 13px; color: #bae6fd; font-weight: 700;">전 세계 공동 지구 상태 (전체 누적 코인)</div>
+                    <div id="global-earth-text" style="color: #ffffff; font-size: 17px; font-weight: 900;">로딩 중...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="top-rank-card" id="top-1-card">
+            <div class="top-rank-info">
+                <span class="crown-icon">👑</span>
+                <div>
+                    <div style="font-size:14px; color:#94a3b8; font-weight:800; margin-bottom:2px;">현재 1위 TOP</div>
+                    <div class="top-player-name" id="top1-name">불러오는 중...</div>
+                </div>
+            </div>
+            <div class="top-player-score" id="top1-score">0 코인</div>
+        </div>
+
+        <div class="rank-grid" id="rank-list">
+            <div class="rank-item"><span class="rank-num">2</span><span>서버 연결 중...</span><span class="rank-score">-</span></div>
+        </div>
+    </div>
+
+    <div id="game-screen">
+        <div class="game-hud">
+            <div class="hud-item">⏱️ 남은 시간: <span id="game-timer" style="color:#facc15;">30</span>초</div>
+            <div class="hud-item">🎯 난이도: <span id="difficulty-display" style="color:#38bdf8;">보통</span></div>
+            <div class="hud-item">💰 보유 코인: <span id="user-coins-display" style="color:#facc15;">0</span> 코인</div>
+            <div class="hud-item">♻️ 수거 성공: <span id="recycled-count" style="color:#4ade80;">0</span>개</div>
+            <button class="btn-quit" onclick="quitGame()">나가기</button>
+        </div>
+
+        <div class="conveyor-container" id="conveyor">
+            <div class="conveyor-belt"></div>
+        </div>
+
+        <div class="bins-container">
+            <div class="bin-wrapper">
+                <div class="bin-box bin-plastic" data-bintype="plastic" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)" ondrop="handleDrop(event, 'plastic')">
+                    <div class="bin-lid"><div class="bin-hole"></div></div>
+                    <span style="font-size:45px; margin: 15px 0 5px 0;">🥤</span>
+                    <span>플라스틱</span>
+                </div>
+            </div>
+            <div class="bin-wrapper">
+                <div class="bin-box bin-glass" data-bintype="glass" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)" ondrop="handleDrop(event, 'glass')">
+                    <div class="bin-lid"><div class="bin-hole"></div></div>
+                    <span style="font-size:45px; margin: 15px 0 5px 0;">🍾</span>
+                    <span>유리병</span>
+                </div>
+            </div>
+            <div class="bin-wrapper">
+                <div class="bin-box bin-paper" data-bintype="paper" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)" ondrop="handleDrop(event, 'paper')">
+                    <div class="bin-lid"><div class="bin-hole"></div></div>
+                    <span style="font-size:45px; margin: 15px 0 5px 0;">📦</span>
+                    <span>종이</span>
+                </div>
+            </div>
+            <div class="bin-wrapper">
+                <div class="bin-box bin-general" data-bintype="general" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)" ondrop="handleDrop(event, 'general')">
+                    <div class="bin-lid"><div class="bin-hole"></div></div>
+                    <span style="font-size:45px; margin: 15px 0 5px 0;">🗑️</span>
+                    <span>종량제</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-nav-bar" id="bottom-bar">
+        <div class="main-title">🌱 에코 리사이클러 (Eco World)</div>
+        <div class="nav-buttons">
+            <button class="nav-btn btn-yellow" onclick="openModal('guide-modal')">게임방법</button>
+            <button class="nav-btn btn-green" onclick="openModal('shop-modal')">스킨상점</button>
+            <button class="nav-btn btn-blue" onclick="openModal('earth-modal')">지구상태</button>
+            <button class="nav-btn btn-purple" onclick="openModal('hall-modal')">명예의전당</button>
+        </div>
+    </div>
+</div>
+
+<!-- 모달 팝업들 -->
+<div id="guide-modal" class="modal">
+    <div class="modal-content">
+        <button class="modal-close" onclick="closeModal('guide-modal')">✖</button>
+        <h2>📖 게임방법 및 난이도 안내</h2>
+        <div class="guide-box">
+            <div class="guide-title">♻️ 분리수거 조작법 및 오답 페널티</div>
+            - 벨트를 따라 지나가는 쓰레기를 <b>드래그 앤 드롭</b>으로 올바른 수거함에 넣으세요.<br>
+            - <b>틀린 수거함에 넣으면 수거 성공 횟수와 점수가 깎이니 주의하세요!</b><br>
+            - <b>라벨 붙은 페트병</b>은 <b>먼저 클릭(터치)</b>하여 비닐 라벨을 떼어낸 뒤 각각 알맞은 곳에 버리세요.
+        </div>
+        <div class="guide-box">
+            <div class="guide-title">🎯 난이도 및 코인 보상</div>
+            - <b>쉬움</b>: 매우 느림 (성공당 <b>1 코인</b>)<br>
+            - <b>보통</b>: 적당한 속도 (성공당 <b>10 코인</b>)<br>
+            - <b>어려움</b>: 빠른 속도 (성공당 <b>50 코인</b>)
+        </div>
+    </div>
+</div>
+
+<div id="shop-modal" class="modal">
+    <div class="modal-content">
+        <button class="modal-close" onclick="closeModal('shop-modal')">✖</button>
+        <h2>🛒 수거통 스킨 상점</h2>
+        <p style="margin-top:5px; color:#64748b;">현재 계정 누적 코인: <b id="shop-coin-display" style="color:#d97706;">0</b> 코인</p>
+        
+        <div class="shop-card">
+            <div style="text-align:left;">
+                <div style="font-weight:bold; font-size:15px;">🗑️ 기본 스킨</div>
+                <div style="font-size:12px; color:#64748b;">기본 분리수거함</div>
+            </div>
+            <button id="btn-skin-default" class="btn-skin" style="padding:8px 14px; background:#10b981; color:white; font-weight:bold; border:none; border-radius:8px; cursor:pointer;" onclick="equipSkin('default')">장착 중</button>
+        </div>
+
+        <div class="shop-card">
+            <div style="text-align:left;">
+                <div style="font-weight:bold; font-size:15px;">✨ 네온 발광 스킨</div>
+                <div style="font-size:12px; color:#64748b;">누적 코인 5,000점 이상 달성 시 사용 가능</div>
+            </div>
+            <button id="btn-skin-neon" class="btn-skin" style="padding:8px 14px; background:#94a3b8; color:white; font-weight:bold; border:none; border-radius:8px;" disabled>잠김</button>
+        </div>
+
+        <div class="shop-card">
+            <div style="text-align:left;">
+                <div style="font-weight:bold; font-size:15px;">🔥 마그마 용암 스킨</div>
+                <div style="font-size:12px; color:#64748b;">누적 코인 10,000점 이상 달성 시 사용 가능</div>
+            </div>
+            <button id="btn-skin-magma" class="btn-skin" style="padding:8px 14px; background:#94a3b8; color:white; font-weight:bold; border:none; border-radius:8px;" disabled>잠김</button>
+        </div>
+
+        <div class="shop-card">
+            <div style="text-align:left;">
+                <div style="font-weight:bold; font-size:15px;">🧊 글레이셔 빙하 스킨</div>
+                <div style="font-size:12px; color:#64748b;">누적 코인 20,000점 이상 달성 시 사용 가능</div>
+            </div>
+            <button id="btn-skin-glacier" class="btn-skin" style="padding:8px 14px; background:#94a3b8; color:white; font-weight:bold; border:none; border-radius:8px;" disabled>잠김</button>
+        </div>
+
+        <div class="shop-card">
+            <div style="text-align:left;">
+                <div style="font-weight:bold; font-size:15px;">👑 골든 레전드 스킨</div>
+                <div style="font-size:12px; color:#64748b;">누적 코인 50,000점 이상 달성 시 사용 가능</div>
+            </div>
+            <button id="btn-skin-gold" class="btn-skin" style="padding:8px 14px; background:#94a3b8; color:white; font-weight:bold; border:none; border-radius:8px;" disabled>잠김</button>
+        </div>
+    </div>
+</div>
+
+<div id="earth-modal" class="modal"><div class="modal-content"><button class="modal-close" onclick="closeModal('earth-modal')">✖</button><h2>🌍 지구 레벨 정보</h2><p style="margin-top:15px; line-height:1.7; color:#475569; text-align:left;">전 세계 플레이어들의 코인이 모여 지구가 회복됩니다.</p></div></div>
+<div id="hall-modal" class="modal"><div class="modal-content"><button class="modal-close" onclick="closeModal('hall-modal')">✖</button><h2>🎖️ 명예의 전당</h2><p style="margin-top:15px; color:#475569;">전 세계 누적 리사이클 최고 기록자 명단입니다.</p></div></div>
+
+<script>
+    const SUPABASE_URL = 'https://qtidvngyvexpwcykbseg.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_VSg1HRXbu-MxRInnx0Ej5A_YJb53GkX';
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const DIFFICULTY_SETTINGS = {
+        easy: { speed: 1.0, spawnTime: 2000, coinReward: 1, label: '쉬움' },
+        normal: { speed: 2.5, spawnTime: 1300, coinReward: 10, label: '보통' },
+        hard: { speed: 4.8, spawnTime: 800, coinReward: 50, label: '어려움' }
+    };
+
+    let gameState = {
+        recycledCount: 0,
+        currentUser: null,
+        timer: 30,
+        difficulty: 'normal',
+        isPlaying: false,
+        spawnInterval: null,
+        timerInterval: null
+    };
+
+    const ITEM_TYPES = {
+        plastic: { name: '플라스틱병', type: 'plastic', svg: `<svg viewBox="0 0 24 24" fill="#38bdf8"><path d="M6 2h12v2H6zM8 5h8v3H8zM6 9h12v13H6z"/></svg>` },
+        glass: { name: '유리병', type: 'glass', svg: `<svg viewBox="0 0 24 24" fill="#34d399"><path d="M9 2h6v3H9zM10 5h4v3h-4zM7 9h10v13H7z"/></svg>` },
+        paper: { name: '종이상자', type: 'paper', svg: `<svg viewBox="0 0 24 24" fill="#fbbf24"><path d="M3 4h18v16H3z"/></svg>` },
+        general: { name: '종량제 쓰레기', type: 'general', svg: `<svg viewBox="0 0 24 24" fill="#94a3b8"><path d="M12 2l4 4-4 4-4-4zM4 9h16v13H4z"/></svg>` },
+        labeled_pet: { name: '라벨 붙은 페트병 (클릭!)', type: 'labeled', svg: `<svg viewBox="0 0 24 24" fill="#0284c7"><path d="M6 2h12v2H6zM8 5h8v3H8zM6 9h12v13H6z"/><rect x="6" y="12" width="12" height="6" fill="#ef4444"/></svg>` }
+    };
+
+    window.addEventListener('DOMContentLoaded', async () => {
+        const savedSchool = localStorage.getItem('eco_user_school');
+        const savedGrade = localStorage.getItem('eco_user_grade');
+        const savedClass = localStorage.getItem('eco_user_class');
+        const savedNick = localStorage.getItem('eco_user_nick');
+        const savedSessionName = localStorage.getItem('eco_logged_in_user');
+
+        if (savedSchool) document.getElementById('school-input').value = savedSchool;
+        if (savedGrade) document.getElementById('grade-select').value = savedGrade;
+        if (savedClass) document.getElementById('class-input').value = savedClass;
+        if (savedNick) document.getElementById('nickname-input').value = savedNick;
+
+        if (savedSessionName) {
+            try {
+                const { data, error } = await db.from('rankings').select('name, coins, current_skin').eq('name', savedSessionName).maybeSingle();
+                if (data) {
+                    gameState.currentUser = {
+                        name: data.name,
+                        coins: data.coins || 0,
+                        currentSkin: data.current_skin || 'default'
+                    };
+                    applySkinVisual(gameState.currentUser.currentSkin);
+                }
+            } catch (err) {
+                console.error('자동 세션 복원 실패:', err);
+            }
+        }
+    });
+
+    async function fetchLeaderboard() {
+        try {
+            const { data, error } = await db.from('rankings').select('name, coins').order('coins', { ascending: false });
+            if (error) throw error;
+
+            if (data && data.length > 0) {
+                document.getElementById('top1-name').innerText = data[0].name;
+                document.getElementById('top1-score').innerText = `${data[0].coins} 코인`;
+
+                let listHtml = '';
+                for (let i = 1; i < Math.min(data.length, 10); i++) {
+                    listHtml += `<div class="rank-item"><span class="rank-num">${i + 1}</span><span>${data[i].name}</span><span class="rank-score">${data[i].coins} 코인</span></div>`;
+                }
+                document.getElementById('rank-list').innerHTML = listHtml || '<div style="grid-column:span 2; text-align:center; color:#94a3b8; padding:10px;">다음 순위가 없습니다.</div>';
+
+                const globalTotalCoins = data.reduce((sum, row) => sum + (row.coins || 0), 0);
+                updateGlobalEarthLevel(globalTotalCoins);
+            }
+        } catch (err) { console.error(err); }
+    }
+
+    function updateGlobalEarthLevel(globalCoins) {
+        const earthText = document.getElementById('global-earth-text');
+        if (globalCoins < 10000) {
+            earthText.innerText = `멸망된 지구 (${globalCoins.toLocaleString()} / 10,000 코인)`;
+        } else if (globalCoins < 20000) {
+            earthText.innerText = `멸망 직전 지구 (${globalCoins.toLocaleString()} / 20,000 코인) ✨`;
+        } else {
+            earthText.innerText = `🚧 지구 레벨업! 업데이트 진행 중! (${globalCoins.toLocaleString()} 코인!) 🎉`;
+        }
+    }
+
+    async function verifyAndStartGame() {
+        const school = document.getElementById('school-input').value.trim();
+        const grade = document.getElementById('grade-select').value;
+        const cls = document.getElementById('class-input').value.trim();
+        const nick = document.getElementById('nickname-input').value.trim();
+
+        if (!school) { alert('학교 이름을 입력해주세요!'); return; }
+        if (!grade) { alert('학년을 선택해주세요!'); return; }
+        if (!cls) { alert('반을 입력해주세요!'); return; }
+        if (!nick) { alert('닉네임을 입력해주세요!'); return; }
+
+        const fullName = `${school} ${grade} ${cls}반 ${nick}`;
+
+        try {
+            if (gameState.currentUser && gameState.currentUser.name === fullName) {
+                startGame();
+                return;
+            }
+
+            const { data, error } = await db.from('rankings').select('name, coins, password, current_skin').eq('name', fullName).maybeSingle();
+
+            let userCoins = 0;
+            let userCurrentSkin = 'default';
+
+            if (data) {
+                const inputPwd = prompt(`"${fullName}"님은 이미 등록된 계정입니다.\n비밀번호를 입력해주세요:`);
+                if (inputPwd === null) return;
+
+                if (inputPwd !== (data.password || '')) {
+                    alert('❌ 비밀번호가 일치하지 않습니다!');
+                    return;
+                }
+                userCoins = data.coins || 0;
+                userCurrentSkin = data.current_skin || 'default';
+            } else {
+                const newPwd = prompt(`"${fullName}"님은 신규 등록 닉네임입니다.\n사용할 비밀번호를 설정해주세요:`);
+                if (newPwd === null || !newPwd.trim()) {
+                    alert('비밀번호를 입력해야 시작할 수 있습니다.');
+                    return;
+                }
+
+                const { error: insErr } = await db.from('rankings').insert({
+                    name: fullName,
+                    coins: 0,
+                    password: newPwd.trim(),
+                    current_skin: 'default'
+                });
+                if (insErr) throw insErr;
+                userCoins = 0;
+                userCurrentSkin = 'default';
+            }
+
+            gameState.currentUser = {
+                name: fullName,
+                coins: userCoins,
+                currentSkin: userCurrentSkin
+            };
+
+            applySkinVisual(gameState.currentUser.currentSkin);
+
+            localStorage.setItem('eco_user_school', school);
+            localStorage.setItem('eco_user_grade', grade);
+            localStorage.setItem('eco_user_class', cls);
+            localStorage.setItem('eco_user_nick', nick);
+            localStorage.setItem('eco_logged_in_user', fullName);
+
+            startGame();
+
+        } catch (err) {
+            alert('인증 중 오류가 발생했습니다: ' + err.message);
+        }
+    }
+
+    function startGame() {
+        if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch(() => {});
+        }
+
+        const selectedTime = parseInt(document.getElementById('time-select').value) || 30;
+        gameState.difficulty = document.getElementById('difficulty-select').value || 'normal';
+        const diffConfig = DIFFICULTY_SETTINGS[gameState.difficulty];
+
+        document.getElementById('top-user-bar').style.display = 'none';
+        document.getElementById('main-dashboard').style.display = 'none';
+        document.getElementById('bottom-bar').style.display = 'none';
+        document.getElementById('game-screen').style.display = 'block';
+
+        document.getElementById('main-container').style.maxWidth = '100vw';
+        document.getElementById('main-container').style.width = '100vw';
+        document.getElementById('main-container').style.borderRadius = '0';
+
+        gameState.recycledCount = 0;
+        gameState.timer = selectedTime;
+        gameState.isPlaying = true;
+
+        document.getElementById('recycled-count').innerText = '0';
+        document.getElementById('game-timer').innerText = gameState.timer;
+        document.getElementById('difficulty-display').innerText = diffConfig.label;
+        document.getElementById('user-coins-display').innerText = gameState.currentUser.coins;
+
+        gameState.spawnInterval = setInterval(spawnTrash, diffConfig.spawnTime);
+        gameState.timerInterval = setInterval(() => {
+            gameState.timer--;
+            document.getElementById('game-timer').innerText = gameState.timer;
+            if (gameState.timer <= 0) endGame();
+        }, 1000);
+    }
+
+    // 게임 중간 나가기 기능 (코인 저장 안 함)
+    function quitGame() {
+        if (!confirm('게임을 포기하고 메인으로 나가시겠습니까?\n(이번 판에 획득한 코인은 저장되지 않습니다.)')) return;
+
+        gameState.isPlaying = false;
+        clearInterval(gameState.spawnInterval);
+        clearInterval(gameState.timerInterval);
+
+        if (document.exitFullscreen) {
+            document.exitFullscreen().catch(() => {});
+        }
+
+        document.querySelectorAll('.trash-item').forEach(e => e.remove());
+
+        document.getElementById('main-container').style.maxWidth = '1200px';
+        document.getElementById('main-container').style.width = '96vw';
+        document.getElementById('main-container').style.borderRadius = '24px';
+
+        document.getElementById('top-user-bar').style.display = 'flex';
+        document.getElementById('game-screen').style.display = 'none';
+        document.getElementById('main-dashboard').style.display = 'block';
+        document.getElementById('bottom-bar').style.display = 'flex';
+
+        fetchLeaderboard();
+    }
+
+    function attachConveyorMovement(el, startPos = 0, speed = 2.5) {
+        const conveyor = document.getElementById('conveyor');
+        let pos = startPos;
+        
+        const moveInterval = setInterval(() => {
+            if (!gameState.isPlaying || !el.parentElement || el.dataset.dragging === "true") {
+                if (!gameState.isPlaying || !el.parentElement) clearInterval(moveInterval);
+                return;
+            }
+            pos += speed;
+            el.style.left = pos + 'px';
+
+            if (pos > conveyor.clientWidth - 90) {
+                clearInterval(moveInterval);
+                el.remove();
+            }
+        }, 20);
+
+        el.dataset.moveInterval = moveInterval;
+    }
+
+    function spawnTrash() {
+        if (!gameState.isPlaying) return;
+
+        const keys = Object.keys(ITEM_TYPES);
+        const randKey = keys[Math.floor(Math.random() * keys.length)];
+        const itemData = ITEM_TYPES[randKey];
+
+        const el = createTrashElement(itemData.type, itemData.name, itemData.svg);
+
+        if (itemData.type === 'labeled') {
+            el.onclick = () => splitPetBottle(el);
+        }
+
+        document.getElementById('conveyor').appendChild(el);
+        const diffSpeed = DIFFICULTY_SETTINGS[gameState.difficulty].speed;
+        attachConveyorMovement(el, 0, itemData.type === 'labeled' ? diffSpeed * 0.6 : diffSpeed);
+    }
+
+    function createTrashElement(type, name, svgContent) {
+        const el = document.createElement('div');
+        el.className = 'trash-item';
+        el.dataset.type = type;
+        el.draggable = true;
+
+        const tag = document.createElement('div');
+        tag.className = 'trash-label-tag';
+        tag.innerText = name;
+        el.appendChild(tag);
+
+        const svgWrap = document.createElement('div');
+        svgWrap.style.width = '100%'; svgWrap.style.height = '100%';
+        svgWrap.innerHTML = svgContent;
+        el.appendChild(svgWrap);
+
+        el.ondragstart = (e) => {
+            el.dataset.dragging = "true";
+            e.dataTransfer.setData('text/plain', el.dataset.type);
+            window.draggedElement = el;
+        };
+        el.ondragend = () => { el.dataset.dragging = "false"; };
+
+        el.ontouchstart = (e) => {
+            if (type === 'labeled') return;
+            e.preventDefault();
+            el.dataset.dragging = "true";
+            window.draggedElement = el;
+            
+            const touch = e.touches[0];
+            el.style.position = 'fixed';
+            el.style.zIndex = 1000;
+            moveAt(touch.clientX, touch.clientY);
+
+            function moveAt(pageX, pageY) {
+                el.style.left = pageX - 42 + 'px';
+                el.style.top = pageY - 42 + 'px';
+
+                const hoveredBin = document.elementFromPoint(pageX, pageY)?.closest('.bin-box');
+                document.querySelectorAll('.bin-box').forEach(b => b.classList.remove('drag-hover'));
+                if (hoveredBin) hoveredBin.classList.add('drag-hover');
+            }
+
+            function onTouchMove(event) {
+                const touchMove = event.touches[0];
+                moveAt(touchMove.clientX, touchMove.clientY);
+            }
+
+            document.addEventListener('touchmove', onTouchMove, { passive: false });
+
+            el.ontouchend = (ev) => {
+                document.removeEventListener('touchmove', onTouchMove);
+                document.querySelectorAll('.bin-box').forEach(b => b.classList.remove('drag-hover'));
+                el.dataset.dragging = "false";
+                
+                const changedTouch = ev.changedTouches[0];
+                const targetBin = document.elementFromPoint(changedTouch.clientX, changedTouch.clientY)?.closest('.bin-box');
+                if (targetBin) {
+                    checkAndCollect(el.dataset.type, targetBin.dataset.bintype, el);
+                } else {
+                    el.remove();
+                }
+            };
+        };
+
+        return el;
+    }
+
+    function splitPetBottle(el) {
+        const parent = el.parentElement;
+        const leftPos = parseFloat(el.style.left) || 0;
+        el.remove();
+
+        const diffSpeed = DIFFICULTY_SETTINGS[gameState.difficulty].speed;
+
+        const labelEl = createTrashElement('general', '비닐 라벨 (종량제)', ITEM_TYPES.general.svg);
+        parent.appendChild(labelEl);
+        attachConveyorMovement(labelEl, leftPos, diffSpeed);
+
+        const petEl = createTrashElement('plastic', '클린 페트병 (플라스틱)', ITEM_TYPES.plastic.svg);
+        parent.appendChild(petEl);
+        attachConveyorMovement(petEl, leftPos - 50, diffSpeed);
+    }
+
+    function allowDrop(e) { e.preventDefault(); }
+    function dragEnter(e) { e.currentTarget.classList.add('drag-hover'); }
+    function dragLeave(e) { e.currentTarget.classList.remove('drag-hover'); }
+
+    function handleDrop(e, binType) {
+        e.preventDefault();
+        e.currentTarget.classList.remove('drag-hover');
+        const itemType = e.dataTransfer.getData('text/plain');
+        checkAndCollect(itemType, binType, window.draggedElement);
+    }
+
+    function checkAndCollect(itemType, binType, element) {
+        if (itemType === 'labeled') {
+            alert('⚠️ 라벨이 붙어있습니다! 먼저 클릭(터치)해서 라벨을 떼어내주세요!');
+            return;
+        }
+
+        if (itemType === binType) {
+            gameState.recycledCount++;
+            document.getElementById('recycled-count').innerText = gameState.recycledCount;
+            if (element) element.remove();
+        } else {
+            gameState.recycledCount = Math.max(0, gameState.recycledCount - 1);
+            document.getElementById('recycled-count').innerText = gameState.recycledCount;
+            if (element) element.remove();
+            alert('❌ 오답! 잘못된 수거함에 넣어 점수가 깎였습니다!');
+        }
+    }
+
+    async function endGame() {
+        gameState.isPlaying = false;
+        clearInterval(gameState.spawnInterval);
+        clearInterval(gameState.timerInterval);
+
+        if (document.exitFullscreen) {
+            document.exitFullscreen().catch(() => {});
+        }
+
+        document.querySelectorAll('.trash-item').forEach(e => e.remove());
+
+        const coinPerItem = DIFFICULTY_SETTINGS[gameState.difficulty].coinReward;
+        const earnedCoins = gameState.recycledCount * coinPerItem;
+        
+        gameState.currentUser.coins += earnedCoins;
+        document.getElementById('user-coins-display').innerText = gameState.currentUser.coins;
+
+        try {
+            await db.from('rankings').update({ coins: gameState.currentUser.coins }).eq('name', gameState.currentUser.name);
+            fetchLeaderboard();
+        } catch (err) {
+            console.error('점수 저장 오류:', err);
+        }
+
+        alert(`게임 종료!\n성공한 분리수거: ${gameState.recycledCount}개\n획득한 코인: +${earnedCoins} 코인!\n현재 총 코인: ${gameState.currentUser.coins} 코인`);
+
+        document.getElementById('main-container').style.maxWidth = '1200px';
+        document.getElementById('main-container').style.width = '96vw';
+        document.getElementById('main-container').style.borderRadius = '24px';
+
+        document.getElementById('top-user-bar').style.display = 'flex';
+        document.getElementById('game-screen').style.display = 'none';
+        document.getElementById('main-dashboard').style.display = 'block';
+        document.getElementById('bottom-bar').style.display = 'flex';
+    }
+
+    function openModal(id) { 
+        if (id === 'shop-modal') updateShopUI();
+        document.getElementById(id).style.display = 'flex'; 
+    }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+    
+    function updateShopUI() {
+        if (!gameState.currentUser) {
+            document.getElementById('shop-coin-display').innerText = 0;
+            return;
+        }
+
+        const currentCoins = gameState.currentUser.coins;
+        document.getElementById('shop-coin-display').innerText = currentCoins;
+        const currentSkin = gameState.currentUser.currentSkin;
+
+        const skins = [
+            { id: 'default', req: 0 },
+            { id: 'neon', req: 5000 },
+            { id: 'magma', req: 10000 },
+            { id: 'glacier', req: 20000 },
+            { id: 'gold', req: 50000 }
+        ];
+
+        skins.forEach(skin => {
+            const btn = document.getElementById(`btn-skin-${skin.id}`);
+            if (!btn) return;
+
+            if (currentSkin === skin.id) {
+                btn.innerText = '장착 중';
+                btn.style.background = '#10b981';
+                btn.disabled = true;
+                btn.style.cursor = 'default';
+            } else if (currentCoins >= skin.req) {
+                btn.innerText = '장착하기';
+                btn.style.background = '#f59e0b';
+                btn.disabled = false;
+                btn.style.cursor = 'pointer';
+                btn.onclick = () => equipSkin(skin.id);
+            } else {
+                btn.innerText = `잠김 (${skin.req.toLocaleString()}점 필요)`;
+                btn.style.background = '#94a3b8';
+                btn.disabled = true;
+                btn.style.cursor = 'default';
+            }
+        });
+    }
+
+    async function equipSkin(skinName) {
+        if (!gameState.currentUser) return;
+
+        gameState.currentUser.currentSkin = skinName;
+        applySkinVisual(skinName);
+
+        try {
+            await db.from('rankings').update({ 
+                current_skin: skinName 
+            }).eq('name', gameState.currentUser.name);
+        } catch (err) {
+            console.error(err);
+        }
+
+        alert('스킨이 장착되었습니다!');
+        updateShopUI();
+    }
+
+    function applySkinVisual(skinName) {
+        document.body.classList.remove('skin-neon', 'skin-magma', 'skin-glacier', 'skin-gold');
+        if (skinName !== 'default') {
+            document.body.classList.add(`skin-${skinName}`);
+        }
+    }
+
+    fetchLeaderboard();
+</script>
+</body>
+</html>
